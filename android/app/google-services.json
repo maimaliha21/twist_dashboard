@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "93720788382",
+    "project_id": "twist-app-87036",
+    "storage_bucket": "twist-app-87036.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:93720788382:android:daef4a4f28ebd6325c6a8f",
+        "android_client_info": {
+          "package_name": "com.example.loan_agent_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaf-x9_QY_LgxpyKX6srAjNFfPabaYrmE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:93720788382:android:01511632616166b85c6a8f",
+        "android_client_info": {
+          "package_name": "com.example.twist_dashboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaf-x9_QY_LgxpyKX6srAjNFfPabaYrmE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
