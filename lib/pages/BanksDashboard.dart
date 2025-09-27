@@ -47,7 +47,10 @@ class _BanksDashboardState extends State<BanksDashboard> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -93,18 +96,31 @@ class _BanksDashboardState extends State<BanksDashboard> {
         ],
       ),
       child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection("banks").snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection("banks")
+            .where("deletedAt", isNull: true)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            print("No banks found");
             return Center(
-              child: Text("No banks found", style: TextStyle(color: AppColors.textSecondary)),
+              child: Text(
+                "No banks found",
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             );
           }
 
           final banks = snapshot.data!.docs;
+          for (var doc in banks) {
+            final data = doc.data() as Map<String, dynamic>;
+            print("Bank ID: ${doc.id}, Data: $data");
+          }
 
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -115,7 +131,9 @@ class _BanksDashboardState extends State<BanksDashboard> {
                   child: SizedBox(
                     width: constraints.maxWidth,
                     child: DataTable(
-                      headingRowColor: MaterialStateProperty.all(AppColors.surface),
+                      headingRowColor: MaterialStateProperty.all(
+                        AppColors.surface,
+                      ),
                       dataRowHeight: 70,
                       columnSpacing: 32,
                       columns: const [
@@ -125,6 +143,7 @@ class _BanksDashboardState extends State<BanksDashboard> {
                         DataColumn(label: Text("Max Loan")),
                         DataColumn(label: Text("Installments")),
                         DataColumn(label: Text("Updated At")),
+                        DataColumn(label: Text("Deleted At")),
                         DataColumn(label: Text("Actions")),
                       ],
                       rows: banks.map((doc) {
@@ -133,23 +152,59 @@ class _BanksDashboardState extends State<BanksDashboard> {
                           cells: [
                             DataCell(Text(data['name'] ?? '')),
                             DataCell(
-                              data['logoUrl'] != null && data['logoUrl'].toString().isNotEmpty
-                                  ? Image.network(data['logoUrl'], width: 40, height: 40)
-                                  : Icon(Icons.image_not_supported, color: AppColors.greyLight),
+                              data['logoUrl'] != null &&
+                                      data['logoUrl'].toString().isNotEmpty
+                                  ? Image.network(
+                                      data['logoUrl'],
+                                      width: 40,
+                                      height: 40,
+                                    )
+                                  : Icon(
+                                      Icons.image_not_supported,
+                                      color: AppColors.greyLight,
+                                    ),
                             ),
-                            DataCell(Text(data['loanLimits']?['min']?.toString() ?? '-')),
-                            DataCell(Text(data['loanLimits']?['max']?.toString() ?? '-')),
-                            DataCell(Text(data['maxInstallments']?.toString() ?? '-')),
-                            DataCell(Text(
-                              data['updatedAt'] != null
-                                  ? (data['updatedAt'] as Timestamp).toDate().toString().split(' ')[0]
-                                  : '-',
-                            )),
+                            DataCell(
+                              Text(
+                                data['loanLimits']?['min']?.toString() ?? '-',
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                data['loanLimits']?['max']?.toString() ?? '-',
+                              ),
+                            ),
+                            DataCell(
+                              Text(data['maxInstallments']?.toString() ?? '-'),
+                            ),
+                            DataCell(
+                              Text(
+                                data['updatedAt'] != null
+                                    ? (data['updatedAt'] as Timestamp)
+                                          .toDate()
+                                          .toString()
+                                          .split(' ')[0]
+                                    : '-',
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                data['deletedAt'] != null
+                                    ? (data['deletedAt'] as Timestamp)
+                                          .toDate()
+                                          .toString()
+                                          .split(' ')[0]
+                                    : '-',
+                              ),
+                            ),
                             DataCell(
                               Row(
                                 children: [
                                   IconButton(
-                                    icon: Icon(Icons.edit, color: AppColors.warning),
+                                    icon: Icon(
+                                      Icons.edit,
+                                      color: AppColors.warning,
+                                    ),
                                     onPressed: () {
                                       setState(() {
                                         _showForm = true;
@@ -160,8 +215,15 @@ class _BanksDashboardState extends State<BanksDashboard> {
                                     },
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.delete, color: AppColors.error),
-                                    onPressed: () => _confirmDelete(context, doc.id, data['name']),
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color: AppColors.error,
+                                    ),
+                                    onPressed: () => _confirmDelete(
+                                      context,
+                                      doc.id,
+                                      data['name'],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -195,16 +257,49 @@ class _BanksDashboardState extends State<BanksDashboard> {
         child: Column(
           children: [
             _buildRowFields([
-              _buildTextField(nameCtrl, "Bank Name", Icons.account_balance, errorText: nameError),
-              _buildTextField(descCtrl, "Description", Icons.description, errorText: descError),
+              _buildTextField(
+                nameCtrl,
+                "Bank Name",
+                Icons.account_balance,
+                errorText: nameError,
+              ),
+              _buildTextField(
+                descCtrl,
+                "Description",
+                Icons.description,
+                errorText: descError,
+              ),
             ]),
             _buildRowFields([
-              _buildTextField(logoCtrl, "Logo URL", Icons.image, errorText: logoError),
-              _buildTextField(minCtrl, "Min Loan", Icons.attach_money, type: TextInputType.number, errorText: minError),
+              _buildTextField(
+                logoCtrl,
+                "Logo URL",
+                Icons.image,
+                errorText: logoError,
+              ),
+              _buildTextField(
+                minCtrl,
+                "Min Loan",
+                Icons.attach_money,
+                type: TextInputType.number,
+                errorText: minError,
+              ),
             ]),
             _buildRowFields([
-              _buildTextField(maxCtrl, "Max Loan", Icons.attach_money, type: TextInputType.number, errorText: maxError),
-              _buildTextField(instCtrl, "Installments", Icons.date_range, type: TextInputType.number, errorText: instError),
+              _buildTextField(
+                maxCtrl,
+                "Max Loan",
+                Icons.attach_money,
+                type: TextInputType.number,
+                errorText: maxError,
+              ),
+              _buildTextField(
+                instCtrl,
+                "Installments",
+                Icons.date_range,
+                type: TextInputType.number,
+                errorText: instError,
+              ),
             ]),
             const SizedBox(height: 20),
             Row(
@@ -212,22 +307,46 @@ class _BanksDashboardState extends State<BanksDashboard> {
               children: [
                 TextButton(
                   onPressed: _cancelForm,
-                  child: Text("Cancel", style: TextStyle(color: AppColors.textSecondary)),
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
                   onPressed: () async {
                     setState(() {
-                      nameError = nameCtrl.text.trim().isEmpty ? "Bank name is required" : null;
-                      descError = descCtrl.text.trim().isEmpty ? "Description is required" : null;
-                      logoError = logoCtrl.text.trim().isEmpty ? "Logo URL is required" : null;
-                      minError = minCtrl.text.trim().isEmpty ? "Min loan is required" : null;
-                      maxError = maxCtrl.text.trim().isEmpty ? "Max loan is required" : null;
-                      instError = instCtrl.text.trim().isEmpty ? "Installments are required" : null;
+                      nameError = nameCtrl.text.trim().isEmpty
+                          ? "Bank name is required"
+                          : null;
+                      descError = descCtrl.text.trim().isEmpty
+                          ? "Description is required"
+                          : null;
+                      logoError = logoCtrl.text.trim().isEmpty
+                          ? "Logo URL is required"
+                          : null;
+                      minError = minCtrl.text.trim().isEmpty
+                          ? "Min loan is required"
+                          : null;
+                      maxError = maxCtrl.text.trim().isEmpty
+                          ? "Max loan is required"
+                          : null;
+                      instError = instCtrl.text.trim().isEmpty
+                          ? "Installments are required"
+                          : null;
                     });
 
-                    if ([nameError, descError, logoError, minError, maxError, instError].every((e) => e == null)) {
+                    if ([
+                      nameError,
+                      descError,
+                      logoError,
+                      minError,
+                      maxError,
+                      instError,
+                    ].every((e) => e == null)) {
                       final data = {
                         "name": nameCtrl.text,
                         "description": descCtrl.text,
@@ -238,19 +357,27 @@ class _BanksDashboardState extends State<BanksDashboard> {
                         },
                         "maxInstallments": int.tryParse(instCtrl.text) ?? 60,
                         "updatedAt": FieldValue.serverTimestamp(),
+                        "deletedAt": null,
                       };
 
                       if (_isEditing && _editingId != null) {
-                        await FirebaseFirestore.instance.collection("banks").doc(_editingId).update(data);
+                        await FirebaseFirestore.instance
+                            .collection("banks")
+                            .doc(_editingId)
+                            .update(data);
                       } else {
-                        data["createdAt"] = FieldValue.serverTimestamp();
-                        await FirebaseFirestore.instance.collection("banks").add(data);
+                        await FirebaseFirestore.instance
+                            .collection("banks")
+                            .add(data);
                       }
 
                       _cancelForm();
                     }
                   },
-                  child: Text(_isEditing ? "Update" : "Save", style: const TextStyle(color: Colors.white)),
+                  child: Text(
+                    _isEditing ? "Update" : "Save",
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -265,17 +392,28 @@ class _BanksDashboardState extends State<BanksDashboard> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        children: children.map((child) => Expanded(child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: child,
-        ))).toList(),
+        children: children
+            .map(
+              (child) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: child,
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 
   /// TextField helper
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon,
-      {TextInputType? type, String? errorText}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType? type,
+    String? errorText,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: type,
@@ -284,8 +422,12 @@ class _BanksDashboardState extends State<BanksDashboard> {
         prefixIcon: Icon(icon, color: AppColors.primary),
         errorText: errorText,
         border: const UnderlineInputBorder(),
-        enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-        focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.primary, width: 2)),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.primary, width: 2),
+        ),
       ),
     );
   }
@@ -322,13 +464,20 @@ class _BanksDashboardState extends State<BanksDashboard> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Confirm Delete"),
-        content: Text("Are you sure you want to delete ${bankName ?? 'this bank'}?"),
+        content: Text(
+          "Are you sure you want to delete ${bankName ?? 'this bank'}?",
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
-              FirebaseFirestore.instance.collection("banks").doc(id).delete();
+              FirebaseFirestore.instance.collection("banks").doc(id).update({
+                "deletedAt": FieldValue.serverTimestamp(),
+              }); // soft delete
               Navigator.pop(context);
             },
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
