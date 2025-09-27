@@ -3,6 +3,10 @@
         android:label="twist_dashboard"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="AIzaSyBUq6cH7fTEx3oMrylkSxOOZMLWRwf0VCs"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

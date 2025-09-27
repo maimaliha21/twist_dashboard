@@ -193,7 +193,7 @@ class _DashboardLayoutState extends State<DashboardLayout> {
       case 1:
         return const BanksDashboard();
       case 2:
-        return const TerminalsPage();
+        return const TerminalsDashboard();
       case 3:
         return const CompaniesDashboard();
       default:
