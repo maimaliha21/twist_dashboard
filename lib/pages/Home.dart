@@ -109,6 +109,11 @@ class StatCardStream extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Query collectionRef = FirebaseFirestore.instance.collection(collection);
+    
+ 
+  collectionRef = collectionRef.where("deletedAt", isNull: true);
+ 
+
     if (queryFilter != null) {
       queryFilter!.forEach((key, value) {
         collectionRef = collectionRef.where(key, isEqualTo: value);

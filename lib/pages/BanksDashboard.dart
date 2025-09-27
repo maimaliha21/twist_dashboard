@@ -1,7 +1,12 @@
 // lib/pages/banks_dashboard.dart
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:twist_dashboard/theme/AppColors.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class BanksDashboard extends StatefulWidget {
   const BanksDashboard({super.key});
@@ -18,10 +23,16 @@ class _BanksDashboardState extends State<BanksDashboard> {
   // Controllers
   final nameCtrl = TextEditingController();
   final descCtrl = TextEditingController();
-  final logoCtrl = TextEditingController();
   final minCtrl = TextEditingController();
   final maxCtrl = TextEditingController();
   final instCtrl = TextEditingController();
+
+  // الصور
+  File? _pickedImage; // Mobile/Desktop
+  Uint8List? _webImageBytes; // Web
+  String? _currentImageUrl; // عند التعديل، الصورة الحالية
+
+  final ImagePicker _picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +118,6 @@ class _BanksDashboardState extends State<BanksDashboard> {
             );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            print("No banks found");
             return Center(
               child: Text(
                 "No banks found",
@@ -117,10 +127,6 @@ class _BanksDashboardState extends State<BanksDashboard> {
           }
 
           final banks = snapshot.data!.docs;
-          for (var doc in banks) {
-            final data = doc.data() as Map<String, dynamic>;
-            print("Bank ID: ${doc.id}, Data: $data");
-          }
 
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -242,14 +248,14 @@ class _BanksDashboardState extends State<BanksDashboard> {
     );
   }
 
-  /// الفورم مع التحقق
+  /// الفورم مع رفع الصورة
   Widget _buildForm(BuildContext context) {
     String? nameError;
     String? descError;
-    String? logoError;
     String? minError;
     String? maxError;
     String? instError;
+    String? logoError;
 
     return StatefulBuilder(
       builder: (context, setState) => SingleChildScrollView(
@@ -271,12 +277,7 @@ class _BanksDashboardState extends State<BanksDashboard> {
               ),
             ]),
             _buildRowFields([
-              _buildTextField(
-                logoCtrl,
-                "Logo URL",
-                Icons.image,
-                errorText: logoError,
-              ),
+              _buildLogoPicker(setState),
               _buildTextField(
                 minCtrl,
                 "Min Loan",
@@ -325,9 +326,6 @@ class _BanksDashboardState extends State<BanksDashboard> {
                       descError = descCtrl.text.trim().isEmpty
                           ? "Description is required"
                           : null;
-                      logoError = logoCtrl.text.trim().isEmpty
-                          ? "Logo URL is required"
-                          : null;
                       minError = minCtrl.text.trim().isEmpty
                           ? "Min loan is required"
                           : null;
@@ -337,20 +335,48 @@ class _BanksDashboardState extends State<BanksDashboard> {
                       instError = instCtrl.text.trim().isEmpty
                           ? "Installments are required"
                           : null;
+                      logoError = (_pickedImage == null && _webImageBytes == null && !_isEditing)
+                          ? "Logo is required"
+                          : null;
                     });
 
                     if ([
                       nameError,
                       descError,
-                      logoError,
                       minError,
                       maxError,
                       instError,
+                      logoError,
                     ].every((e) => e == null)) {
+                      String? imageUrl = _currentImageUrl;
+
+                      if (_pickedImage != null || _webImageBytes != null) {
+                        File? fileToUpload;
+                        Uint8List? webBytes;
+
+                        if (!kIsWeb) {
+                          fileToUpload = _pickedImage!;
+                        } else {
+                          webBytes = _webImageBytes;
+                        }
+
+                        final ref = FirebaseStorage.instance
+                            .ref()
+                            .child('banks/${DateTime.now().millisecondsSinceEpoch}');
+                        UploadTask uploadTask;
+                        if (!kIsWeb) {
+                          uploadTask = ref.putFile(fileToUpload!);
+                        } else {
+                          uploadTask = ref.putData(webBytes!);
+                        }
+                        final snapshot = await uploadTask;
+                        imageUrl = await snapshot.ref.getDownloadURL();
+                      }
+
                       final data = {
                         "name": nameCtrl.text,
                         "description": descCtrl.text,
-                        "logoUrl": logoCtrl.text,
+                        "logoUrl": imageUrl,
                         "loanLimits": {
                           "min": int.tryParse(minCtrl.text) ?? 1000,
                           "max": int.tryParse(maxCtrl.text) ?? 50000,
@@ -383,6 +409,39 @@ class _BanksDashboardState extends State<BanksDashboard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// اختيار الصورة + معاينة
+  Widget _buildLogoPicker(StateSetter setState) {
+    return GestureDetector(
+      onTap: () async {
+        final pickedFile =
+            await _picker.pickImage(source: ImageSource.gallery);
+        if (pickedFile != null) {
+          if (kIsWeb) {
+            final bytes = await pickedFile.readAsBytes();
+            setState(() {
+              _webImageBytes = bytes;
+            });
+          } else {
+            setState(() {
+              _pickedImage = File(pickedFile.path);
+            });
+          }
+        }
+      },
+      child: Container(
+        height: 60,
+        color: AppColors.surface,
+        child: _pickedImage != null
+            ? Image.file(_pickedImage!, fit: BoxFit.cover)
+            : _webImageBytes != null
+                ? Image.memory(_webImageBytes!, fit: BoxFit.cover)
+                : _currentImageUrl != null
+                    ? Image.network(_currentImageUrl!, fit: BoxFit.cover)
+                    : Icon(Icons.add_a_photo, size: 40),
       ),
     );
   }
@@ -435,19 +494,21 @@ class _BanksDashboardState extends State<BanksDashboard> {
   void _clearControllers() {
     nameCtrl.clear();
     descCtrl.clear();
-    logoCtrl.clear();
     minCtrl.clear();
     maxCtrl.clear();
     instCtrl.clear();
+    _pickedImage = null;
+    _webImageBytes = null;
+    _currentImageUrl = null;
   }
 
   void _fillControllers(Map<String, dynamic> data) {
     nameCtrl.text = data['name'] ?? '';
     descCtrl.text = data['description'] ?? '';
-    logoCtrl.text = data['logoUrl'] ?? '';
     minCtrl.text = data['loanLimits']?['min']?.toString() ?? '';
     maxCtrl.text = data['loanLimits']?['max']?.toString() ?? '';
     instCtrl.text = data['maxInstallments']?.toString() ?? '';
+    _currentImageUrl = data['logoUrl'];
   }
 
   void _cancelForm() {
@@ -477,7 +538,7 @@ class _BanksDashboardState extends State<BanksDashboard> {
             onPressed: () {
               FirebaseFirestore.instance.collection("banks").doc(id).update({
                 "deletedAt": FieldValue.serverTimestamp(),
-              }); // soft delete
+              });
               Navigator.pop(context);
             },
             child: const Text("Delete", style: TextStyle(color: Colors.white)),
